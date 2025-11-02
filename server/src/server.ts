@@ -24,13 +24,14 @@ import { getLanguageModes, LanguageModes } from './languageModes';
 const connection = createConnection(ProposedFeatures.all);
 
 // Create a simple text document manager
-const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
+const documents = new TextDocuments<TextDocument>(TextDocument);
 
 // Language modes manager
 let languageModes: LanguageModes;
 
 let hasConfigurationCapability = false;
 let hasWorkspaceFolderCapability = false;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 let hasDiagnosticRelatedInformationCapability = false;
 
 connection.onInitialize((params: InitializeParams) => {
@@ -119,16 +120,14 @@ const defaultSettings: KDLSettings = {
 let globalSettings: KDLSettings = defaultSettings;
 
 // Cache the settings of all open documents
-const documentSettings: Map<string, Thenable<KDLSettings>> = new Map();
+const documentSettings = new Map<string, Thenable<KDLSettings>>();
 
 connection.onDidChangeConfiguration(change => {
 	if (hasConfigurationCapability) {
 		// Reset all cached document settings
 		documentSettings.clear();
 	} else {
-		globalSettings = <KDLSettings>(
-			(change.settings.kdlLanguageServer || defaultSettings)
-		);
+		globalSettings = (change.settings.kdlLanguageServer || defaultSettings) as KDLSettings;
 	}
 	// Revalidate all open text documents
 	documents.all().forEach(validateTextDocument);
