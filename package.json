@@ -1,0 +1,131 @@
+{
+	"name": "lsp-config-kdl-language-service",
+	"description": "A language server using kdl language services",
+	"author": "Niri",
+	"license": "MIT",
+	"version": "1.0.0",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/Microsoft/vscode-extension-samples"
+	},
+	"publisher": "vscode-samples",
+	"categories": [
+		"Programming Languages"
+	],
+	"keywords": [
+		"config.kdl",
+		"niri",
+		"kdl",
+		"language server",
+		"language support"
+	],
+	"engines": {
+		"vscode": "^1.100.0"
+	},
+	"main": "./client/out/extension",
+	"contributes": {
+		"languages": [
+			{
+				"id": "kdl",
+				"aliases": [
+					"KDL",
+					"kdl"
+				],
+				"extensions": [
+					".kdl"
+				],
+				"configuration": "./language-configuration.json"
+			}
+		],
+		"grammars": [
+			{
+				"language": "kdl",
+				"scopeName": "source.kdl",
+				"path": "./syntaxes/kdl.tmLanguage.json"
+			}
+		],
+		"configuration": {
+			"type": "object",
+			"title": "KDL Language Server",
+			"properties": {
+				"kdlLanguageServer.validate": {
+					"type": "boolean",
+					"default": true,
+					"description": "Enable/disable validation of KDL documents"
+				},
+				"kdlLanguageServer.maxNumberOfProblems": {
+					"type": "number",
+					"default": 100,
+					"description": "Maximum number of problems to report per document"
+				},
+				"kdlLanguageServer.trace.server": {
+					"type": "string",
+					"enum": [
+						"off",
+						"messages",
+						"verbose"
+					],
+					"default": "off",
+					"description": "Traces the communication between VS Code and the language server"
+				},
+				"kdl.enable": {
+                    "scope": "resource",
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Enable/disable the KDL language server"
+                },
+                "kdl.command": {
+                    "scope": "resource",
+                    "type": "string",
+                    "description": "LSP server command (defaults to bundled server)"
+                },
+                "kdl.argv": {
+                    "scope": "resource",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "LSP server arguments"
+                },
+                "kdl.loglevel": {
+                    "scope": "resource",
+                    "description": "Log level for the KDL LSP server",
+                    "type": "string",
+                    "default": "info",
+                    "enum": [
+                        "off",
+                        "error",
+                        "warn",
+                        "info",
+                        "debug"
+                    ],
+                    "enumDescriptions": [
+                        "No server tracing",
+                        "Errors only",
+                        "Warnings and errors",
+                        "Information, warnings, and errors",
+                        "Full debug output"
+                    ]
+                }
+			}
+		}
+	},
+	"scripts": {
+		"cleanup": "./cleanup.sh",
+		"vscode:prepublish": "cd client && npm install && cd .. && npm run compile",
+		"compile": "tsc -b",
+		"watch": "tsc -b -w",
+		"lint": "eslint",
+		"postinstall": "cd client && npm install && cd ../server && npm install && cd .."
+	},
+	"devDependencies": {
+		"@eslint/js": "^9.39.0",
+		"@stylistic/eslint-plugin": "^5.5.0",
+		"@types/mocha": "^10.0.10",
+		"@types/node": "^24",
+		"eslint": "^9.39.0",
+		"typescript": "^5.9.3",
+		"typescript-eslint": "^8.46.2"
+	}
+}

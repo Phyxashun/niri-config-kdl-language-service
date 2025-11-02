@@ -1,0 +1,278 @@
+{
+    // ============================================================================
+    // language-configuration.jsonc
+    // ============================================================================
+    // 
+    // Language configuration for KDL (KDL Document Language)
+    // Supports both KDL v1.0 (used in Niri Wayland Compositor config.kdl)
+    // and KDL v2.0 specification
+    //
+    // This file defines editor behavior including:
+    // - Comment styles and toggling
+    // - Bracket matching and auto-closing
+    // - Indentation rules
+    // - Code folding
+    // - Smart Enter key behavior
+    // ============================================================================
+    // ----------------------------------------------------------------------------
+    // COMMENTS
+    // ----------------------------------------------------------------------------
+    // Defines how comments work in KDL files for comment toggling (Ctrl+/)
+    // and block comment wrapping (Shift+Alt+A)
+    "comments": {
+        // Single-line comments start with // and continue to end of line
+        // Example: // This is a comment
+        "lineComment": "//",
+        // Multi-line/block comments use /* */ and can be nested
+        // Example: /* This is a 
+        //             multi-line comment */
+        "blockComment": [
+            "/*",
+            "*/"
+        ]
+    },
+    // ----------------------------------------------------------------------------
+    // BRACKETS
+    // ----------------------------------------------------------------------------
+    // Defines bracket pairs for matching, highlighting, and navigation
+    // Press Ctrl+Shift+\ to jump between matching brackets
+    "brackets": [
+        // Curly braces - used for node children blocks in KDL
+        // Example: input { keyboard { } }
+        [
+            "{",
+            "}"
+        ],
+        // Square brackets - included for completeness (not used in KDL syntax)
+        [
+            "[",
+            "]"
+        ],
+        // Parentheses - used for type annotations in KDL 2.0
+        // Example: (u8)42 or (published)date "2024-01-01"
+        [
+            "(",
+            ")"
+        ]
+    ],
+    // ----------------------------------------------------------------------------
+    // AUTO-CLOSING PAIRS
+    // ----------------------------------------------------------------------------
+    // Automatically inserts closing character when you type the opening one
+    // The "notIn" property prevents auto-closing in certain contexts
+    "autoClosingPairs": [
+        // Curly braces for child blocks
+        {
+            "open": "{",
+            "close": "}"
+        },
+        // Square brackets (for completeness)
+        {
+            "open": "[",
+            "close": "]"
+        },
+        // Parentheses for type annotations
+        {
+            "open": "(",
+            "close": ")"
+        },
+        // Single quotes - won't auto-close inside strings or comments
+        // This prevents: "text 'here" from becoming "text 'here'"
+        {
+            "open": "'",
+            "close": "'",
+            "notIn": [
+                "string",
+                "comment"
+            ]
+        },
+        // Double quotes for strings - won't auto-close inside strings or comments
+        // Example: node "value" or prop="text"
+        {
+            "open": "\"",
+            "close": "\"",
+            "notIn": [
+                "string",
+                "comment"
+            ]
+        },
+        // Triple quotes for multi-line strings (KDL 2.0)
+        // Example: text """
+        //            Multi-line
+        //            content
+        //          """
+        {
+            "open": "\"\"\"",
+            "close": "\"\"\"",
+            "notIn": [
+                "string",
+                "comment"
+            ]
+        },
+        // Block comments - auto-closes when you type /*
+        {
+            "open": "/*",
+            "close": "*/"
+        }
+    ],
+    // ----------------------------------------------------------------------------
+    // SURROUNDING PAIRS
+    // ----------------------------------------------------------------------------
+    // When you select text and type an opening character, the editor will
+    // wrap the selection with the pair. Example: Select "text" and press "
+    // Result: "text" becomes ""text""
+    "surroundingPairs": [
+        [
+            "{",
+            "}"
+        ], // Wrap with braces
+        [
+            "[",
+            "]"
+        ], // Wrap with brackets
+        [
+            "(",
+            ")"
+        ], // Wrap with parentheses
+        [
+            "\"",
+            "\""
+        ], // Wrap with double quotes
+        [
+            "'",
+            "'"
+        ], // Wrap with single quotes
+        [
+            "/*",
+            "*/"
+        ] // Wrap with block comment
+    ],
+    // ----------------------------------------------------------------------------
+    // WORD PATTERN
+    // ----------------------------------------------------------------------------
+    // Regular expression that defines what constitutes a "word" in KDL
+    // Used for:
+    // - Double-click selection
+    // - Ctrl+D (select next occurrence)
+    // - Word-based navigation (Ctrl+Left/Right)
+    // - IntelliSense suggestions
+    //
+    // Pattern breakdown:
+    // (-?\d*\.\d\w*)  - Matches numbers: 123, -45, 3.14, 1.5e10
+    // |               - OR
+    // ([^\d\W]|_)+    - Matches identifiers: node-name, property_key, flag
+    "wordPattern": "(-?\\d*\\.\\d\\w*)|([^\\d\\W]|_)+",
+    // ----------------------------------------------------------------------------
+    // INDENTATION RULES
+    // ----------------------------------------------------------------------------
+    // Defines when to automatically increase or decrease indentation
+    "indentationRules": {
+        // Increase indent when line ends with unclosed bracket/brace/paren
+        // and doesn't contain closing quotes (to avoid issues with strings)
+        //
+        // Examples that trigger indent:
+        // - input {
+        // - binds {
+        // - match (
+        // - preset-column-widths {
+        "increaseIndentPattern": "^\\s*(\\{[^}\"']*|\\([^)\"']*|\\[[^\\]\"']*)$",
+        // Decrease indent when line starts with closing bracket/brace/paren
+        //
+        // Examples:
+        // - }
+        // - })
+        // - }  // comment
+        "decreaseIndentPattern": "^\\s*(\\}|\\)|\\])\\s*$"
+    },
+    // ----------------------------------------------------------------------------
+    // FOLDING
+    // ----------------------------------------------------------------------------
+    // Defines how code folding (collapsing sections) works
+    "folding": {
+        // Enable indent-based folding in addition to bracket-based folding
+        // This allows folding based on indentation levels, useful for
+        // KDL's structure where child blocks are indented
+        "offSide": true,
+        // Custom folding markers using special comments
+        // Usage:
+        // // #region Input Configuration
+        // input { ... }
+        // // #endregion
+        //
+        // This creates a foldable region that can be collapsed
+        "markers": {
+            "start": "^\\s*#region\\b",
+            "end": "^\\s*#endregion\\b"
+        }
+    },
+    // ----------------------------------------------------------------------------
+    // ON ENTER RULES
+    // ----------------------------------------------------------------------------
+    // Defines smart behavior when pressing Enter in different contexts
+    "onEnterRules": [
+        // Rule 1: After opening brace with content
+        // When you press Enter after a line like "input {" or "binds {"
+        // automatically indent the next line
+        {
+            "beforeText": "^\\s*[^\\s{}\\[\\]()/;\"#=]+.*\\{\\s*$",
+            "action": {
+                "indent": "indent"
+            }
+        },
+        // Rule 2: Inside single-line comments
+        // When you press Enter at the end of a // comment line,
+        // automatically start the next line with //
+        //
+        // Example:
+        // // This is a comment
+        // // |  <- cursor here with // already added
+        {
+            "beforeText": "^\\s*//.*$",
+            "action": {
+                "indent": "none",
+                "appendText": "// "
+            }
+        },
+        // Rule 3: After opening a block comment
+        // When you press Enter after /*, add a * prefix for multi-line style
+        //
+        // Example:
+        // /*
+        //  * |  <- cursor here
+        {
+            "beforeText": "^\\s*/\\*[^*]*\\*?(?!/\\*)$",
+            "action": {
+                "indent": "indentOutdent",
+                "appendText": " * "
+            }
+        },
+        // Rule 4: Continuation inside block comments
+        // When inside a block comment and you press Enter on a * line,
+        // continue with another *
+        //
+        // Example:
+        // /*
+        //  * First line
+        //  * |  <- cursor here, * already added
+        {
+            "beforeText": "^\\s*\\*[^/]*$",
+            "action": {
+                "indent": "none",
+                "appendText": "* "
+            }
+        }
+    ],
+    // ----------------------------------------------------------------------------
+    // AUTO-CLOSE BEFORE
+    // ----------------------------------------------------------------------------
+    // Characters that, when typed, will trigger auto-completion of an
+    // auto-closing pair if one is pending. This prevents the editor from
+    // auto-closing when you're about to type these characters.
+    //
+    // Example: If you type " and then immediately type ; it won't try to
+    // auto-close the quote since you're clearly ending the statement
+    //
+    // Characters: semicolon, colon, period, comma, equals, closing brackets,
+    // greater-than, backtick, space, newline, tab
+    "autoCloseBefore": ";:.,=}])>` \n\t"
+}

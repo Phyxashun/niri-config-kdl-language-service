@@ -1,0 +1,384 @@
+{
+	"comment": "KDL (KDL Document Language) grammar supporting both v1.0 (e.g., Niri config) and v2.0 spec. Includes special handling for Niri-style flag nodes and output device patterns.",
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "KDL",
+	"scopeName": "source.kdl",
+	"fileTypes": [
+		"kdl"
+	],
+	"firstLineMatch": "^/-\\s*kdl-version\\s+[12]",
+	"patterns": [
+		{
+			"include": "#version-marker"
+		},
+		{
+			"include": "#forbidden_ident"
+		},
+		{
+			"include": "#slashdash_node_with_children_comment"
+		},
+		{
+			"include": "#slashdash_node_comment"
+		},
+		{
+			"include": "#slashdash_block_comment"
+		},
+		{
+			"include": "#node_name"
+		},
+		{
+			"include": "#values"
+		},
+		{
+			"include": "#comments"
+		}
+	],
+	"repository": {
+		"version-marker": {
+			"match": "^(/-)(\\s*)(kdl-version)(\\s+)([12])",
+			"captures": {
+				"1": {
+					"name": "punctuation.definition.comment.slashdash.kdl"
+				},
+				"3": {
+					"name": "keyword.control.version.kdl"
+				},
+				"5": {
+					"name": "constant.numeric.integer.decimal.kdl"
+				}
+			}
+		},
+		"node_name": {
+			"patterns": [
+				{
+					"comment": "Niri key binding pattern (e.g., Mod+Escape, XF86AudioPlay)",
+					"match": "^\\s*([A-Z][a-zA-Z0-9]*(?:[+][A-Z][a-zA-Z0-9_]*)*)(?=\\s)",
+					"captures": {
+						"1": {
+							"name": "entity.name.function.keybinding.kdl"
+						}
+					}
+				},
+				{
+					"comment": "Node with string argument (e.g., output \"DEVICE\")",
+					"match": "((?<=[{;])|^)\\s*([^\\s{}\\[\\]()/;\"#=]+)\\s+(\"[^\"]*\"|r?#+\"[^\"]*\"#+)",
+					"captures": {
+						"2": {
+							"name": "entity.name.tag.node-with-argument.kdl"
+						},
+						"3": {
+							"patterns": [
+								{
+									"include": "#string_single_line"
+								},
+								{
+									"include": "#raw-string"
+								}
+							]
+						}
+					}
+				},
+				{
+					"comment": "Flag nodes (Niri-style toggle options)",
+					"match": "^\\s*(tap|dwt|dwtp|drag-lock|natural-scroll|numlock|off|prefer-no-csd|warp-mouse-to-focus|skip-at-startup)\\s*(?=$|;|//|/\\*)",
+					"captures": {
+						"1": {
+							"name": "constant.language.flag.kdl"
+						}
+					}
+				},
+				{
+					"comment": "Regular node names",
+					"match": "((?<=[{;])|^)\\s*(?![/\\\\{}#;\\[\\]=])[^\\s{}\\[\\]()/;\"#=]+",
+					"name": "entity.name.tag.kdl"
+				}
+			]
+		},
+		"values": {
+			"patterns": [
+				{
+					"include": "#type-annotation"
+				},
+				{
+					"include": "#property"
+				},
+				{
+					"include": "#null"
+				},
+				{
+					"include": "#boolean"
+				},
+				{
+					"include": "#float_keyword"
+				},
+				{
+					"include": "#float_fraction"
+				},
+				{
+					"include": "#float_exp"
+				},
+				{
+					"include": "#decimal"
+				},
+				{
+					"include": "#hexadecimal"
+				},
+				{
+					"include": "#octal"
+				},
+				{
+					"include": "#binary"
+				},
+				{
+					"include": "#raw-string"
+				},
+				{
+					"include": "#string_multi_line"
+				},
+				{
+					"include": "#string_single_line"
+				},
+				{
+					"include": "#ident_string"
+				}
+			]
+		},
+		"type-annotation": {
+			"comment": "Type annotations like (u8) or (published)",
+			"begin": "\\(",
+			"end": "\\)",
+			"beginCaptures": {
+				"0": {
+					"name": "punctuation.definition.annotation.begin.kdl"
+				}
+			},
+			"endCaptures": {
+				"0": {
+					"name": "punctuation.definition.annotation.end.kdl"
+				}
+			},
+			"contentName": "entity.name.type.kdl",
+			"patterns": [
+				{
+					"include": "#string_single_line"
+				},
+				{
+					"include": "#raw-string"
+				},
+				{
+					"include": "#ident_string"
+				}
+			]
+		},
+		"property": {
+			"comment": "Key-value properties like key=value or key=\"value\"",
+			"begin": "([^\\s{}\\[\\]()/;\"#=]+)(=)",
+			"end": "(?=[\\s;{}]|$)",
+			"beginCaptures": {
+				"1": {
+					"name": "entity.other.attribute-name.kdl"
+				},
+				"2": {
+					"name": "punctuation.separator.key-value.kdl"
+				}
+			},
+			"patterns": [
+				{
+					"include": "#values"
+				}
+			]
+		},
+		"ident_string": {
+			"comment": "Identifier strings (bare unquoted strings)",
+			"name": "string.unquoted.identifier.kdl",
+			"match": "(?![/\\\\{}#;\\[\\]=])[^\\s{}\\[\\]()/;\"#=]+"
+		},
+		"string_single_line": {
+			"comment": "Single-line quoted strings",
+			"name": "string.quoted.double.kdl",
+			"begin": "(?<!#)\"(?!\"\")",
+			"end": "\"",
+			"patterns": [
+				{
+					"include": "#string-escape"
+				}
+			]
+		},
+		"string_multi_line": {
+			"comment": "Multi-line quoted strings",
+			"name": "string.quoted.triple.kdl",
+			"begin": "(?<!#)\"\"\"",
+			"end": "\"\"\"",
+			"patterns": [
+				{
+					"include": "#string-escape"
+				}
+			]
+		},
+		"raw-string": {
+			"comment": "Raw strings with # delimiters",
+			"patterns": [
+				{
+					"name": "string.quoted.other.raw.multiline.kdl",
+					"begin": "(#+)\"\"\"",
+					"end": "\"\"\"\\1"
+				},
+				{
+					"name": "string.quoted.other.raw.kdl",
+					"begin": "(#+)\"(?!\"\")",
+					"end": "\"\\1"
+				}
+			]
+		},
+		"string-escape": {
+			"comment": "Escape sequences in quoted strings",
+			"patterns": [
+				{
+					"name": "constant.character.escape.kdl",
+					"match": "\\\\[nrtbfs\\\\\"]"
+				},
+				{
+					"name": "constant.character.escape.unicode.kdl",
+					"match": "\\\\u\\{[0-9a-fA-F]{1,6}\\}"
+				},
+				{
+					"name": "constant.character.escape.whitespace.kdl",
+					"match": "\\\\[\\s\\n]+"
+				},
+				{
+					"name": "invalid.illegal.escape.kdl",
+					"match": "\\\\."
+				}
+			]
+		},
+		"float_fraction": {
+			"comment": "Floating point literal (fraction)",
+			"name": "constant.numeric.float.kdl",
+			"match": "[+-]?[0-9][0-9_]*\\.[0-9][0-9_]*([eE][+-]?[0-9_]+)?"
+		},
+		"float_exp": {
+			"comment": "Floating point literal (exponent)",
+			"name": "constant.numeric.float.kdl",
+			"match": "[+-]?[0-9][0-9_]*(\\.[0-9][0-9_]*)?[eE][+-]?[0-9_]+"
+		},
+		"decimal": {
+			"comment": "Integer literal (decimal)",
+			"name": "constant.numeric.integer.decimal.kdl",
+			"match": "[+-]?[0-9][0-9_]*(?![0-9eE.])"
+		},
+		"hexadecimal": {
+			"comment": "Integer literal (hexadecimal)",
+			"name": "constant.numeric.integer.hexadecimal.kdl",
+			"match": "[+-]?0x[a-fA-F0-9][a-fA-F0-9_]*"
+		},
+		"octal": {
+			"comment": "Integer literal (octal)",
+			"name": "constant.numeric.integer.octal.kdl",
+			"match": "[+-]?0o[0-7][0-7_]*"
+		},
+		"binary": {
+			"comment": "Integer literal (binary)",
+			"name": "constant.numeric.integer.binary.kdl",
+			"match": "[+-]?0b[01][01_]*"
+		},
+		"float_keyword": {
+			"comment": "Special floating point keywords",
+			"name": "constant.language.float.kdl",
+			"match": "#(?:nan|inf|-inf)\\b"
+		},
+		"boolean": {
+			"comment": "Boolean values",
+			"name": "constant.language.boolean.kdl",
+			"match": "#(?:true|false)\\b"
+		},
+		"null": {
+			"comment": "Null value",
+			"name": "constant.language.null.kdl",
+			"match": "#null\\b"
+		},
+		"comments": {
+			"patterns": [
+				{
+					"include": "#block_doc_comment"
+				},
+				{
+					"include": "#block_comment"
+				},
+				{
+					"include": "#line_comment"
+				},
+				{
+					"include": "#slashdash_comment"
+				}
+			]
+		},
+		"line_comment": {
+			"comment": "Single-line comment",
+			"name": "comment.line.double-slash.kdl",
+			"begin": "//",
+			"end": "$"
+		},
+		"block_doc_comment": {
+			"comment": "Block documentation comment (not in spec, but common)",
+			"name": "comment.block.documentation.kdl",
+			"begin": "/\\*[*!](?![*/])",
+			"end": "\\*/",
+			"patterns": [
+				{
+					"include": "#block_doc_comment"
+				},
+				{
+					"include": "#block_comment"
+				}
+			]
+		},
+		"block_comment": {
+			"comment": "Block comment (nestable)",
+			"name": "comment.block.kdl",
+			"begin": "/\\*",
+			"end": "\\*/",
+			"patterns": [
+				{
+					"include": "#block_doc_comment"
+				},
+				{
+					"include": "#block_comment"
+				}
+			]
+		},
+		"slashdash_comment": {
+			"comment": "Slashdash inline comment (for arguments and properties)",
+			"name": "comment.block.slashdash.kdl",
+			"begin": "(?<!^)\\s*/-\\s*",
+			"end": "(?=[\\s;\\n{}])"
+		},
+		"slashdash_node_comment": {
+			"comment": "Slashdash node comment (entire node without children)",
+			"name": "comment.block.slashdash.kdl",
+			"begin": "^\\s*/-(?![\\s]*\\{)",
+			"end": "(?:[;]|(?<!\\\\)$)"
+		},
+		"slashdash_node_with_children_comment": {
+			"comment": "Slashdash node comment (node with children block)",
+			"name": "comment.block.slashdash.kdl",
+			"begin": "^\\s*/-[^{]*\\{",
+			"end": "\\}",
+			"patterns": [
+				{
+					"include": "#slashdash_node_with_children_comment"
+				}
+			]
+		},
+		"slashdash_block_comment": {
+			"comment": "Slashdash children block comment",
+			"name": "comment.block.slashdash.kdl",
+			"begin": "/-\\s*\\{",
+			"end": "\\}",
+			"patterns": [
+				{
+					"include": "#slashdash_block_comment"
+				}
+			]
+		}
+	}
+}
