@@ -13,7 +13,6 @@ import {
 	Range,
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
-import { getLanguageModelCache, LanguageModelCache } from './languageModelCache';
 
 export { Position, Range, CompletionList, CompletionItem, Diagnostic };
 
@@ -42,33 +41,120 @@ export interface LanguageModes {
 // ============================================================================
 
 // Forbidden bare keywords (must have # prefix)
-//const FORBIDDEN_KEYWORDS = /\b(?<!#)(true|false|null|nan|(?:-)inf)\b/g;
-const FORBIDDEN_KEYWORDS = /\b#?(true|false|null|nan|(?:-)?inf)\b/g;
-const VALID_LITERAL = /^#?(true|false|null|nan|(?:-)?inf)$/;
-const NONSTANDARD_PREFIX = /^#(true|false|null)$/;
+const FORBIDDEN_KEYWORDS = /\b(?<!#)(true|false|null|nan|(?:-)inf)\b/g;
 
-// Common Niri configuration nodes
+// ============================================================================
+// Niri Configuration Completions
+// Based on: https://github.com/YaLTeR/niri/wiki/Configuration:-Introduction
+// ============================================================================
+
+// Top-level configuration nodes
 const NIRI_NODES = [
-	'input', 'output', 'binds', 'layout', 'animations', 'window-rule',
+	'input', 'output', 'binds', 'layout', 'animations', 
+	'window-rule', 'layer-rule', 'switch-events',
 	'keyboard', 'touchpad', 'mouse', 'trackpoint', 'xkb',
 	'focus-ring', 'border', 'shadow', 'struts', 'hotkey-overlay',
-	'preset-column-widths', 'preset-window-heights'
+	'preset-column-widths', 'preset-window-heights', 'debug'
 ];
 
 // Common Niri flag nodes (toggle options)
 const NIRI_FLAGS = [
+	// Input flags
 	'tap', 'dwt', 'dwtp', 'drag', 'drag-lock', 'natural-scroll',
-	'numlock', 'off', 'prefer-no-csd', 'warp-mouse-to-focus',
-	'skip-at-startup', 'disabled-on-external-mouse'
+	'numlock', 'off', 'warp-mouse-to-focus', 'disabled-on-external-mouse',
+	'scroll-button-lock', 'middle-emulation',
+	// General flags
+	'prefer-no-csd', 'skip-at-startup', 'on',
+	// Border/shadow flags
+	'draw-behind-window', 'clip-to-geometry',
+	// Debug flags
+	'disable-cursor-plane', 'render-drm-device',
+	// Window rule flags
+	'open-floating', 'open-maximized', 'open-fullscreen'
 ];
 
-// Common Niri properties
-const NIRI_PROPERTIES = [
-	'mode', 'scale', 'transform', 'position', 'x', 'y',
-	'gaps', 'width', 'height', 'offset', 'softness', 'spread',
-	'accel-speed', 'accel-profile', 'scroll-method', 'scroll-button',
-	'layout', 'variant', 'options', 'model', 'rules',
-	'allow-inhibiting', 'repeat', 'cooldown-ms', 'hotkey-overlay-title'
+// Common Niri properties with their expected value types
+interface NiriProperty {
+	name: string;
+	valueType: string;
+	description: string;
+}
+
+const NIRI_PROPERTIES: NiriProperty[] = [
+	// Output properties
+	{ name: 'mode', valueType: 'string', description: 'Display mode (e.g., "1920x1080@60")' },
+	{ name: 'scale', valueType: 'number', description: 'Display scale factor (e.g., 1.5 for 150%)' },
+	{ name: 'transform', valueType: 'string', description: 'Display rotation (normal, 90, 180, 270, flipped-*)' },
+	{ name: 'position', valueType: 'position', description: 'Display position (x=N y=N)' },
+	{ name: 'x', valueType: 'number', description: 'X coordinate' },
+	{ name: 'y', valueType: 'number', description: 'Y coordinate' },
+	
+	// Layout properties
+	{ name: 'gaps', valueType: 'number', description: 'Gap size around windows in logical pixels' },
+	{ name: 'width', valueType: 'number', description: 'Width in logical pixels' },
+	{ name: 'height', valueType: 'number', description: 'Height in logical pixels' },
+	{ name: 'proportion', valueType: 'number', description: 'Width as fraction of output (0.0-1.0)' },
+	{ name: 'fixed', valueType: 'number', description: 'Fixed width in logical pixels' },
+	{ name: 'center-focused-column', valueType: 'string', description: 'When to center column ("never", "always", "on-overflow")' },
+	
+	// Focus ring/border properties
+	{ name: 'active-color', valueType: 'color', description: 'Color on active monitor (CSS color)' },
+	{ name: 'inactive-color', valueType: 'color', description: 'Color on inactive monitors' },
+	{ name: 'urgent-color', valueType: 'color', description: 'Color for windows requesting attention' },
+	{ name: 'from', valueType: 'color', description: 'Gradient start color' },
+	{ name: 'to', valueType: 'color', description: 'Gradient end color' },
+	{ name: 'angle', valueType: 'number', description: 'Gradient angle in degrees' },
+	{ name: 'relative-to', valueType: 'string', description: 'Gradient relative to ("window" or "workspace-view")' },
+	{ name: 'in', valueType: 'string', description: 'Color space for gradient interpolation' },
+	
+	// Shadow properties
+	{ name: 'offset', valueType: 'position', description: 'Shadow offset (x=N y=N)' },
+	{ name: 'softness', valueType: 'number', description: 'Shadow blur radius' },
+	{ name: 'spread', valueType: 'number', description: 'Shadow spread/expansion' },
+	{ name: 'color', valueType: 'color', description: 'Shadow color with opacity' },
+	
+	// Input properties
+	{ name: 'accel-speed', valueType: 'number', description: 'Pointer acceleration speed (-1.0 to 1.0)' },
+	{ name: 'accel-profile', valueType: 'string', description: 'Acceleration profile ("flat" or "adaptive")' },
+	{ name: 'scroll-method', valueType: 'string', description: 'Scroll method (two-finger, edge, on-button-down, no-scroll)' },
+	{ name: 'scroll-button', valueType: 'number', description: 'Button number for scroll-method on-button-down' },
+	{ name: 'max-scroll-amount', valueType: 'string', description: 'Maximum scroll for focus-follows-mouse (e.g., "0%")' },
+	
+	// XKB properties
+	{ name: 'layout', valueType: 'string', description: 'Keyboard layout (e.g., "us,ru")' },
+	{ name: 'variant', valueType: 'string', description: 'Keyboard layout variant' },
+	{ name: 'options', valueType: 'string', description: 'XKB options (e.g., "grp:win_space_toggle")' },
+	{ name: 'model', valueType: 'string', description: 'Keyboard model' },
+	{ name: 'rules', valueType: 'string', description: 'XKB rules' },
+	
+	// Keybinding properties
+	{ name: 'allow-inhibiting', valueType: 'boolean', description: 'Allow apps to inhibit this shortcut' },
+	{ name: 'allow-when-locked', valueType: 'boolean', description: 'Allow binding when screen is locked' },
+	{ name: 'repeat', valueType: 'boolean', description: 'Allow key repeat for this binding' },
+	{ name: 'cooldown-ms', valueType: 'number', description: 'Rate limit binding to N milliseconds' },
+	{ name: 'hotkey-overlay-title', valueType: 'string', description: 'Title shown in hotkey overlay (or null)' },
+	
+	// Window rule properties
+	{ name: 'match', valueType: 'match', description: 'Window matching criteria (app-id, title)' },
+	{ name: 'app-id', valueType: 'string', description: 'Match by application ID' },
+	{ name: 'title', valueType: 'string', description: 'Match by window title' },
+	{ name: 'default-column-width', valueType: 'block', description: 'Default width for matched windows' },
+	{ name: 'opacity', valueType: 'number', description: 'Window opacity (0.0-1.0)' },
+	{ name: 'geometry-corner-radius', valueType: 'number', description: 'Window corner radius in pixels' },
+	{ name: 'block-out-from', valueType: 'string', description: 'Block from capture ("screen-capture" or "screencast")' },
+	{ name: 'draw-border-with-background', valueType: 'boolean', description: 'Draw border as background' },
+	
+	// Struts properties
+	{ name: 'left', valueType: 'number', description: 'Left strut in logical pixels' },
+	{ name: 'right', valueType: 'number', description: 'Right strut in logical pixels' },
+	{ name: 'top', valueType: 'number', description: 'Top strut in logical pixels' },
+	{ name: 'bottom', valueType: 'number', description: 'Bottom strut in logical pixels' },
+	
+	// Animation properties
+	{ name: 'slowdown', valueType: 'number', description: 'Animation speed multiplier (>1 slows down, <1 speeds up)' },
+	
+	// Misc properties
+	{ name: 'screenshot-path', valueType: 'string', description: 'Path for saving screenshots (or null)' }
 ];
 
 // Common Niri key modifiers
@@ -76,28 +162,115 @@ const NIRI_KEY_MODIFIERS = [
 	'Mod', 'Super', 'Alt', 'Ctrl', 'Shift'
 ];
 
-// Common Niri special keys
+// Common Niri special keys (from default config analysis)
 const NIRI_SPECIAL_KEYS = [
-	'Escape', 'Return', 'Space', 'Tab', 'Backspace', 'Delete',
+	// Standard keys
+	'Escape', 'Return', 'Space', 'Tab', 'Backspace', 'Delete', 'Slash',
+	// Arrow keys
 	'Left', 'Right', 'Up', 'Down',
+	// Navigation keys
 	'Home', 'End', 'Page_Up', 'Page_Down',
+	// Function keys
 	'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12',
+	// Number keys
+	'1', '2', '3', '4', '5', '6', '7', '8', '9', '0',
+	// Letter keys (vim-style)
+	'H', 'J', 'K', 'L', 'U', 'I', 'O', 'Q', 'R', 'W', 'C', 'D', 'E', 'F', 'P', 'T', 'V',
+	// Punctuation
+	'Minus', 'Equal', 'BracketLeft', 'BracketRight', 'Comma', 'Period',
+	// Media keys (XF86)
 	'XF86AudioRaiseVolume', 'XF86AudioLowerVolume', 'XF86AudioMute',
 	'XF86AudioMicMute', 'XF86AudioPlay', 'XF86AudioStop', 'XF86AudioPrev', 'XF86AudioNext',
 	'XF86MonBrightnessUp', 'XF86MonBrightnessDown',
-	'Print', 'WheelScrollDown', 'WheelScrollUp', 'WheelScrollLeft', 'WheelScrollRight',
+	// Screenshot
+	'Print',
+	// Mouse/touchpad events
+	'WheelScrollDown', 'WheelScrollUp', 'WheelScrollLeft', 'WheelScrollRight',
 	'TouchpadScrollDown', 'TouchpadScrollUp'
 ];
 
-// Common Niri actions/commands
+// Niri actions (from default config and wiki)
 const NIRI_ACTIONS = [
-	'spawn', 'spawn-sh', 'close-window', 'quit',
-	'focus-column-left', 'focus-column-right', 'focus-window-up', 'focus-window-down',
-	'move-column-left', 'move-column-right', 'move-window-up', 'move-window-down',
-	'focus-workspace-up', 'focus-workspace-down', 'focus-monitor-left', 'focus-monitor-right',
-	'maximize-column', 'fullscreen-window', 'toggle-window-floating',
+	// Window management
+	'spawn', 'spawn-sh', 'spawn-at-startup', 'spawn-sh-at-startup',
+	'close-window', 'quit',
+	
+	// Focus actions
+	'focus-column-left', 'focus-column-right', 
+	'focus-window-up', 'focus-window-down',
+	'focus-column-first', 'focus-column-last',
+	'focus-window-or-workspace-down', 'focus-window-or-workspace-up',
+	
+	// Move actions
+	'move-column-left', 'move-column-right',
+	'move-window-up', 'move-window-down',
+	'move-column-to-first', 'move-column-to-last',
+	'move-window-down-or-to-workspace-down', 'move-window-up-or-to-workspace-up',
+	
+	// Monitor actions
+	'focus-monitor-left', 'focus-monitor-right', 'focus-monitor-up', 'focus-monitor-down',
+	'move-column-to-monitor-left', 'move-column-to-monitor-right',
+	'move-column-to-monitor-up', 'move-column-to-monitor-down',
+	'move-window-to-monitor-left', 'move-window-to-monitor-right',
+	'move-window-to-monitor-up', 'move-window-to-monitor-down',
+	'move-workspace-to-monitor-left', 'move-workspace-to-monitor-right',
+	'move-workspace-to-monitor-up', 'move-workspace-to-monitor-down',
+	
+	// Workspace actions
+	'focus-workspace-down', 'focus-workspace-up', 'focus-workspace-previous',
+	'focus-workspace', 'move-column-to-workspace-down', 'move-column-to-workspace-up',
+	'move-column-to-workspace', 'move-window-to-workspace-down', 'move-window-to-workspace-up',
+	'move-window-to-workspace', 'move-workspace-down', 'move-workspace-up',
+	
+	// Column actions
+	'consume-or-expel-window-left', 'consume-or-expel-window-right',
+	'consume-window-into-column', 'expel-window-from-column',
+	'center-column', 'center-visible-columns',
+	
+	// Window sizing
+	'maximize-column', 'fullscreen-window',
+	'set-column-width', 'set-window-height',
+	'switch-preset-column-width', 'switch-preset-column-width-back',
+	'switch-preset-window-height', 'reset-window-height',
+	'expand-column-to-available-width',
+	
+	// Window state
+	'toggle-window-floating', 'switch-focus-between-floating-and-tiling',
+	'toggle-column-tabbed-display',
+	
+	// Layout switching
+	'switch-layout',
+	
+	// Screenshots
 	'screenshot', 'screenshot-screen', 'screenshot-window',
-	'power-off-monitors', 'show-hotkey-overlay'
+	
+	// System
+	'toggle-keyboard-shortcuts-inhibit', 'power-off-monitors',
+	'show-hotkey-overlay', 'toggle-overview',
+	
+	// Debug
+	'toggle-debug-tint'
+];
+
+// Transform values for output
+const NIRI_TRANSFORM_VALUES = [
+	'normal', '90', '180', '270', 
+	'flipped', 'flipped-90', 'flipped-180', 'flipped-270'
+];
+
+// Center-focused-column values
+const NIRI_CENTER_COLUMN_VALUES = [
+	'never', 'always', 'on-overflow'
+];
+
+// Accel-profile values
+const NIRI_ACCEL_PROFILE_VALUES = [
+	'flat', 'adaptive'
+];
+
+// Scroll-method values
+const NIRI_SCROLL_METHOD_VALUES = [
+	'two-finger', 'edge', 'on-button-down', 'no-scroll'
 ];
 
 // ============================================================================
@@ -112,45 +285,98 @@ function isInBlock(text: string, offset: number, blockName: string): boolean {
 	const blockPattern = new RegExp(`\\b${blockName}\\s*\\{`, 'g');
 	let lastBlockStart = -1;
 	let match;
-
+	
 	while ((match = blockPattern.exec(beforeCursor)) !== null) {
 		lastBlockStart = match.index;
 	}
-
-	if (lastBlockStart === -1) return false;
-
+	
+	if (lastBlockStart === -1) {
+		return false;
+	}
+	
 	// Count braces to see if we're still inside
 	const afterBlock = beforeCursor.substring(lastBlockStart);
 	const openBraces = (afterBlock.match(/\{/g) || []).length;
 	const closeBraces = (afterBlock.match(/\}/g) || []).length;
-
+	
 	return openBraces > closeBraces;
+}
+
+/**
+ * Get description for a node name
+ */
+function getNodeDescription(nodeName: string): string {
+	const descriptions: Record<string, string> = {
+		'input': 'Input device configuration (keyboard, mouse, touchpad)',
+		'output': 'Display output configuration',
+		'binds': 'Keyboard shortcuts and key bindings',
+		'layout': 'Window layout and positioning settings',
+		'animations': 'Animation configuration',
+		'window-rule': 'Rules for specific windows',
+		'focus-ring': 'Focus indicator ring settings',
+		'border': 'Window border settings',
+		'shadow': 'Window shadow effects',
+		'struts': 'Screen edge reserved space',
+		'hotkey-overlay': 'Hotkey overlay display settings',
+		'preset-column-widths': 'Preset width configurations',
+		'preset-window-heights': 'Preset height configurations',
+		'keyboard': 'Keyboard input settings',
+		'touchpad': 'Touchpad input settings',
+		'mouse': 'Mouse input settings',
+		'xkb': 'XKB keyboard layout configuration'
+	};
+	return descriptions[nodeName] || `${nodeName} configuration block`;
+}
+
+/**
+ * Get relevant properties based on context
+ */
+function getRelevantProperties(
+	isOutput: boolean, isLayout: boolean, isFocusRing: boolean,
+	isBorder: boolean, isShadow: boolean, isInput: boolean,
+	isBinds: boolean, isWindowRule: boolean
+): NiriProperty[] {
+	if (isOutput) {
+		return NIRI_PROPERTIES.filter(p => 
+			['mode', 'scale', 'transform', 'position', 'x', 'y'].includes(p.name)
+		);
+	}
+	if (isLayout) {
+		return NIRI_PROPERTIES.filter(p => 
+			['gaps', 'center-focused-column', 'proportion', 'fixed', 'width', 'height'].includes(p.name)
+		);
+	}
+	if (isFocusRing || isBorder) {
+		return NIRI_PROPERTIES.filter(p => 
+			['width', 'active-color', 'inactive-color', 'urgent-color', 'from', 'to', 'angle', 'relative-to', 'in'].includes(p.name)
+		);
+	}
+	if (isShadow) {
+		return NIRI_PROPERTIES.filter(p => 
+			['offset', 'x', 'y', 'softness', 'spread', 'color'].includes(p.name)
+		);
+	}
+	if (isInput) {
+		return NIRI_PROPERTIES.filter(p => 
+			['accel-speed', 'accel-profile', 'scroll-method', 'scroll-button', 'max-scroll-amount', 'layout', 'variant', 'options', 'model', 'rules'].includes(p.name)
+		);
+	}
+	if (isBinds) {
+		return NIRI_PROPERTIES.filter(p => 
+			['allow-inhibiting', 'allow-when-locked', 'repeat', 'cooldown-ms', 'hotkey-overlay-title'].includes(p.name)
+		);
+	}
+	if (isWindowRule) {
+		return NIRI_PROPERTIES.filter(p => 
+			['match', 'app-id', 'title', 'opacity', 'geometry-corner-radius', 'block-out-from', 'draw-border-with-background'].includes(p.name)
+		);
+	}
+	return NIRI_PROPERTIES;
 }
 
 // ============================================================================
 // KDL Language Mode
 // ============================================================================
-
-function findInvalidEscapes(kdlText: string): { string: string; invalid: string[] }[] {
-	const stringRegex = /r(#+)?"(.*?)"\1?/gs;
-	const invalidEscape = /\\(?!([nrtbf"\\]|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8}))/g;
-	const results: { string: string; invalid: string[] }[] = [];
-
-	for (const match of kdlText.matchAll(stringRegex)) {
-		const isRaw = match[0].startsWith('r');
-		if (isRaw) continue;
-
-		const content = match[2];
-		const bad = [...content.matchAll(invalidEscape)];
-		if (bad.length > 0) {
-			results.push({
-				string: match[0],
-				invalid: bad.map(m => m[0]),
-			});
-		}
-	}
-	return results;
-}
 
 export function getKDLMode(): LanguageMode {
 	return {
@@ -165,7 +391,7 @@ export function getKDLMode(): LanguageMode {
 
 			for (let i = 0; i < lines.length; i++) {
 				const line = lines[i];
-
+				
 				// Skip comments
 				if (line.trim().startsWith('//') || line.trim().startsWith('/*')) {
 					continue;
@@ -174,15 +400,14 @@ export function getKDLMode(): LanguageMode {
 				// Check for forbidden bare keywords
 				// But allow them after '=' (as property values like allow-inhibiting=false)
 				const beforeEquals = line.split('=')[0];
-				const afterEquals = line.includes('=') ? line.split('=').slice(1).join('=') : '';
-/*
+				
 				FORBIDDEN_KEYWORDS.lastIndex = 0;
 				let match: RegExpExecArray | null;
-
+				
 				// Only check for forbidden keywords in the part before '='
 				while ((match = FORBIDDEN_KEYWORDS.exec(beforeEquals))) {
 					diagnostics.push({
-						severity: DiagnosticSeverity.Hint,
+						severity: DiagnosticSeverity.Error,
 						range: {
 							start: { line: i, character: match.index },
 							end: { line: i, character: match.index + match[0].length }
@@ -191,7 +416,7 @@ export function getKDLMode(): LanguageMode {
 						source: 'kdl'
 					});
 				}
-*/
+
 				// Check for unclosed strings (simple check)
 				const quoteCount = (line.match(/(?<!\\)"/g) || []).length;
 				if (quoteCount % 2 !== 0 && !line.includes('"""')) {
@@ -205,21 +430,22 @@ export function getKDLMode(): LanguageMode {
 						source: 'kdl'
 					});
 				}
-				// (do this *after* the per-line checks)
-				const invalidEscapes = findInvalidEscapes(text);
-				for (const invalid of invalidEscapes) {
-					for (const bad of invalid.invalid) {
-						// Find position of invalid escape in the full document
-						const idx = text.indexOf(bad, text.indexOf(invalid.string));
-						if (idx === -1) continue;
 
-						const startPos = document.positionAt(idx);
-						const endPos = document.positionAt(idx + bad.length);
-
+				// Check for invalid escape sequences
+				const invalidEscape = /\\(?![nrtbfs\\"u\s])/g;
+				let escapeMatch: RegExpExecArray | null;
+				while ((escapeMatch = invalidEscape.exec(line))) {
+					// Make sure we're inside a string
+					const beforeEscape = line.substring(0, escapeMatch.index);
+					const quotesBeforeEscape = (beforeEscape.match(/(?<!\\)"/g) || []).length;
+					if (quotesBeforeEscape % 2 !== 0) { // Inside a string
 						diagnostics.push({
 							severity: DiagnosticSeverity.Error,
-							range: { start: startPos, end: endPos },
-							message: `Invalid escape sequence '${bad}'`,
+							range: {
+								start: { line: i, character: escapeMatch.index },
+								end: { line: i, character: escapeMatch.index + 2 }
+							},
+							message: `Invalid escape sequence '${line.substring(escapeMatch.index, escapeMatch.index + 2)}'`,
 							source: 'kdl'
 						});
 					}
@@ -253,11 +479,125 @@ export function getKDLMode(): LanguageMode {
 			const completions: CompletionItem[] = [];
 
 			// Detect context
-			const isAfterEquals = /=\s*$/.test(linePrefix);
+			const isAfterEquals = /(\w+)=\s*$/.exec(linePrefix);
+			const propertyName = isAfterEquals ? isAfterEquals[1] : null;
 			const isAtLineStart = /^\s*$/.test(linePrefix);
 			const isInBraces = /\{\s*$/.test(linePrefix);
 			const isAfterNodeName = /^\s*\w+\s+$/.test(linePrefix);
+			
+			// Check which block we're in
 			const isInBindsBlock = isInBlock(text, offset, 'binds');
+			const isInInputBlock = isInBlock(text, offset, 'input');
+			const isInLayoutBlock = isInBlock(text, offset, 'layout');
+			const isInFocusRingBlock = isInBlock(text, offset, 'focus-ring');
+			const isInBorderBlock = isInBlock(text, offset, 'border');
+			const isInShadowBlock = isInBlock(text, offset, 'shadow');
+			const isInOutputBlock = isInBlock(text, offset, 'output');
+			const isInWindowRuleBlock = isInBlock(text, offset, 'window-rule');
+
+			// Context-specific value completions after =
+			if (propertyName) {
+				// Find property definition to get value type
+				const propDef = NIRI_PROPERTIES.find(p => p.name === propertyName);
+				
+				if (propDef) {
+					switch (propDef.valueType) {
+						case 'boolean':
+							completions.push(
+								{ label: 'true', kind: CompletionItemKind.Value, detail: 'Boolean true' },
+								{ label: 'false', kind: CompletionItemKind.Value, detail: 'Boolean false' }
+							);
+							break;
+						
+						case 'string':
+							if (propertyName === 'transform') {
+								NIRI_TRANSFORM_VALUES.forEach((val, i) => {
+									completions.push({
+										label: val,
+										kind: CompletionItemKind.EnumMember,
+										data: `transform_${i}`,
+										detail: `Transform: ${val}`
+									});
+								});
+							} else if (propertyName === 'center-focused-column') {
+								NIRI_CENTER_COLUMN_VALUES.forEach((val, i) => {
+									completions.push({
+										label: `"${val}"`,
+										kind: CompletionItemKind.EnumMember,
+										data: `center_${i}`,
+										detail: val,
+										insertText: `"${val}"`
+									});
+								});
+							} else if (propertyName === 'accel-profile') {
+								NIRI_ACCEL_PROFILE_VALUES.forEach((val, i) => {
+									completions.push({
+										label: `"${val}"`,
+										kind: CompletionItemKind.EnumMember,
+										data: `accel_${i}`,
+										detail: val,
+										insertText: `"${val}"`
+									});
+								});
+							} else if (propertyName === 'scroll-method') {
+								NIRI_SCROLL_METHOD_VALUES.forEach((val, i) => {
+									completions.push({
+										label: `"${val}"`,
+										kind: CompletionItemKind.EnumMember,
+										data: `scroll_${i}`,
+										detail: val,
+										insertText: `"${val}"`
+									});
+								});
+							} else {
+								completions.push({
+									label: '""',
+									kind: CompletionItemKind.Snippet,
+									detail: 'String value',
+									insertText: '"$0"',
+									insertTextFormat: 2
+								});
+							}
+							break;
+						
+						case 'number':
+							completions.push({
+								label: '0',
+								kind: CompletionItemKind.Value,
+								detail: 'Numeric value',
+								insertText: '0'
+							});
+							break;
+						
+						case 'color':
+							completions.push(
+								{ label: '"#7fc8ff"', kind: CompletionItemKind.Color, detail: 'Hex color', insertText: '"#7fc8ff"' },
+								{ label: '"rgb(255, 127, 0)"', kind: CompletionItemKind.Color, detail: 'RGB color', insertText: '"rgb(${1:255}, ${2:127}, ${3:0})"', insertTextFormat: 2 },
+								{ label: '"rgba(255, 127, 0, 0.5)"', kind: CompletionItemKind.Color, detail: 'RGBA color', insertText: '"rgba(${1:255}, ${2:127}, ${3:0}, ${4:0.5})"', insertTextFormat: 2 }
+							);
+							break;
+						
+						case 'position':
+							completions.push({
+								label: 'x=0 y=0',
+								kind: CompletionItemKind.Snippet,
+								detail: 'Position coordinates',
+								insertText: 'x=${1:0} y=${2:0}',
+								insertTextFormat: 2
+							});
+							break;
+					}
+				}
+				
+				// Always add basic value options
+				completions.push(
+					{ label: '#true', kind: CompletionItemKind.Value, detail: 'Boolean true (keyword)' },
+					{ label: '#false', kind: CompletionItemKind.Value, detail: 'Boolean false (keyword)' },
+					{ label: '#null', kind: CompletionItemKind.Value, detail: 'Null value' }
+				);
+				
+				return CompletionList.create(completions, false);
+			}
 
 			// Keybinding completions in binds block
 			if (isInBindsBlock && isAtLineStart) {
@@ -268,7 +608,8 @@ export function getKDLMode(): LanguageMode {
 						kind: CompletionItemKind.Keyword,
 						data: `modifier_${index}`,
 						detail: 'Key modifier',
-						insertText: `${mod}+`
+						insertText: `${mod}+`,
+						sortText: `0_${mod}`
 					});
 				});
 
@@ -279,7 +620,8 @@ export function getKDLMode(): LanguageMode {
 						kind: CompletionItemKind.Constant,
 						data: `key_${index}`,
 						detail: 'Special key',
-						insertText: key
+						insertText: key,
+						sortText: `1_${key}`
 					});
 				});
 			}
@@ -287,12 +629,14 @@ export function getKDLMode(): LanguageMode {
 			// Node name completions (at line start or after opening brace)
 			if ((isAtLineStart || isInBraces) && !isInBindsBlock) {
 				NIRI_NODES.forEach((node, index) => {
+					const detail = getNodeDescription(node);
 					completions.push({
 						label: node,
 						kind: CompletionItemKind.Class,
 						data: `node_${index}`,
-						detail: `${node} configuration block`,
-						insertText: node
+						detail: detail,
+						insertText: node,
+						documentation: detail
 					});
 				});
 
@@ -307,15 +651,22 @@ export function getKDLMode(): LanguageMode {
 				});
 			}
 
-			// Property completions
+			// Context-specific property completions
 			if (!isAfterEquals && !isAtLineStart) {
-				NIRI_PROPERTIES.forEach((prop, index) => {
+				const relevantProps = getRelevantProperties(
+					isInOutputBlock, isInLayoutBlock, isInFocusRingBlock, 
+					isInBorderBlock, isInShadowBlock, isInInputBlock,
+					isInBindsBlock, isInWindowRuleBlock
+				);
+
+				relevantProps.forEach((prop: NiriProperty, index: number) => {
 					completions.push({
-						label: prop,
+						label: prop.name,
 						kind: CompletionItemKind.Property,
 						data: `prop_${index}`,
-						detail: `${prop} property`,
-						insertText: `${prop}=`
+						detail: prop.description,
+						insertText: `${prop.name}=`,
+						documentation: `Type: ${prop.valueType}\n${prop.description}`
 					});
 				});
 			}
@@ -328,61 +679,9 @@ export function getKDLMode(): LanguageMode {
 						kind: CompletionItemKind.Function,
 						data: `action_${index}`,
 						detail: `${action} action`,
-						insertText: action
+						insertText: action,
+						sortText: `2_${action}`
 					});
-				});
-			}
-
-			// Boolean/null completions (after =, or as arguments)
-			if (isAfterEquals || isAfterNodeName) {
-				completions.push(
-					{
-						label: '#true',
-						kind: CompletionItemKind.Value,
-						data: 'bool_true',
-						detail: 'Boolean true value',
-						insertText: '#true'
-					},
-					{
-						label: '#false',
-						kind: CompletionItemKind.Value,
-						data: 'bool_false',
-						detail: 'Boolean false value',
-						insertText: '#false'
-					},
-					{
-						label: '#null',
-						kind: CompletionItemKind.Value,
-						data: 'null',
-						detail: 'Null value',
-						insertText: '#null'
-					},
-					{
-						label: 'true',
-						kind: CompletionItemKind.Value,
-						data: 'bare_true',
-						detail: 'Bare true (identifier)',
-						insertText: 'true'
-					},
-					{
-						label: 'false',
-						kind: CompletionItemKind.Value,
-						data: 'bare_false',
-						detail: 'Bare false (identifier)',
-						insertText: 'false'
-					}
-				);
-			}
-
-			// String completions for common patterns
-			if (isAfterEquals) {
-				completions.push({
-					label: '""',
-					kind: CompletionItemKind.Snippet,
-					data: 'string',
-					detail: 'Empty string',
-					insertText: '"$0"',
-					insertTextFormat: 2 // Snippet format
 				});
 			}
 
