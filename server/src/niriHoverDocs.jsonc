@@ -1,0 +1,20 @@
+{
+	// Window and layout entities
+	"window": "**window**: defines a display window or view",
+	"monitor": "**monitor**: selects a specific output device",
+	"workspace": "**workspace**: groups windows logically",
+	
+	// Matching section
+	"match": "**match**\nSpecifies matching rules for window conditions.\nCommon fields include:\n- `app-id`: Regex for the application ID.\n- `title`: Regex for the window title.",
+	"app-id": "**app-id**\nMatches the window's application ID. Usually corresponds to the desktop app name.\nExample:\n```kdl\nmatch app-id=r#\"^org\\\\.wezfurlong\\\\.wezterm$\"#\n```",
+	"title": "**title**\nMatches the window's title. Accepts a regex string.",
+	"window-rule": "**window-rule**\nDefines how windows matching a given pattern should behave.\nYou can nest `match` and configuration options inside.",
+	
+	// Literals
+	"true": "**true**\nBoolean literal value representing “enabled” or “on”.",
+	"#true": "**#true**\nBoolean literal value representing “enabled” or “on”.",
+	"false": "**false**\nBoolean literal value representing “disabled” or “off”.",
+	"#false": "**#false**\nBoolean literal value representing “disabled” or “off”.",
+	"nan": "**nan**\nRepresents \"not a number\".",
+	"#nan": "**#nan**\nRepresents \"not a number\"."
+}

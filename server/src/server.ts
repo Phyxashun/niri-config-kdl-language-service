@@ -10,7 +10,10 @@ import {
 	TextDocumentSyncKind,
 	InitializeResult,
 	DocumentDiagnosticReportKind,
-	type DocumentDiagnosticReport
+	type DocumentDiagnosticReport,
+	Position,
+	HoverParams,
+	Hover
 } from 'vscode-languageserver/node';
 
 import {
@@ -18,6 +21,7 @@ import {
 } from 'vscode-languageserver-textdocument';
 
 import { getLanguageModes, LanguageModes } from './languageModes';
+import { NIRI_HOVER_DOCS } from './niriHoverDocs';
 
 // Create a connection for the server, using Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
@@ -76,10 +80,11 @@ connection.onInitialize((params: InitializeParams) => {
 			diagnosticProvider: {
 				interFileDependencies: false,
 				workspaceDiagnostics: false
-			}
+			},
+			hoverProvider: true
 		}
 	};
-	
+
 	if (hasWorkspaceFolderCapability) {
 		result.capabilities.workspace = {
 			workspaceFolders: {
@@ -87,7 +92,7 @@ connection.onInitialize((params: InitializeParams) => {
 			}
 		};
 	}
-	
+
 	return result;
 });
 
@@ -103,6 +108,41 @@ connection.onInitialized(() => {
 	}
 });
 
+connection.onHover((params: HoverParams): Hover | null => {
+	const { textDocument, position } = params;
+	const document = documents.get(textDocument.uri);
+	if (!document) { return null; }
+
+	// Get the word under the cursor
+	const range = getWordRangeAtPosition(document, position, /[#\w.-]+/);
+	if (!range) { return null; }
+
+	let key = document.getText(range);
+	key = key.startsWith('#') ? key.slice(1) : key;
+
+	const entry = NIRI_HOVER_DOCS[key];
+	if (!entry) { return null; }
+
+	// Build the markdown content
+	let markdown = `**${key}**\n\n`;
+	if (entry.emoji) { markdown += `${entry.emoji} `; }
+	markdown += `${entry.description}\n\n`;
+
+	if (entry.example) {
+		markdown += '```kdl\n' + entry.example + '\n```\n';
+	}
+
+	return {
+		contents: {
+			kind: 'markdown',
+			value: markdown
+		},
+		range
+	};
+});
+
+
+
 // ============================================================================
 // Configuration Management
 // ============================================================================
@@ -112,9 +152,9 @@ interface KDLSettings {
 	validate: boolean;
 }
 
-const defaultSettings: KDLSettings = { 
-	maxNumberOfProblems: 100, 
-	validate: true 
+const defaultSettings: KDLSettings = {
+	maxNumberOfProblems: 100,
+	validate: true
 };
 
 let globalSettings: KDLSettings = defaultSettings;
@@ -172,11 +212,11 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 		if (textDocument.languageId === 'kdl') {
 			const mode = languageModes.getMode('kdl');
 			const latestTextDocument = documents.get(textDocument.uri);
-			
+
 			if (latestTextDocument && latestTextDocument.version === version && mode?.doValidation) {
 				// Check no new version has come in after the async op
 				const modeDiagnostics = mode.doValidation(latestTextDocument);
-				
+
 				// Limit to maxNumberOfProblems
 				diagnostics.push(...modeDiagnostics.slice(0, settings.maxNumberOfProblems));
 			}
@@ -212,7 +252,7 @@ connection.languages.diagnostics.on(async (params) => {
 
 async function validateTextDocumentDiagnostics(textDocument: TextDocument): Promise<Diagnostic[]> {
 	const settings = await getDocumentSettings(textDocument.uri);
-	
+
 	if (!settings.validate) {
 		return [];
 	}
@@ -261,7 +301,7 @@ connection.onCompletionResolve(
 		} else if (item.data?.toString().startsWith('action_')) {
 			item.documentation = `Niri action command. Can be bound to keys or triggered programmatically.`;
 		}
-		
+
 		return item;
 	}
 );
@@ -276,3 +316,35 @@ documents.listen(connection);
 
 // Listen on the connection
 connection.listen();
+
+/**
+ * Get the word range at a given position in the document based on the provided regex.
+ * 
+ * @param document 
+ * @param position 
+ * @param wordRegex 
+ * @returns 
+ */
+function getWordRangeAtPosition(document: TextDocument, position: Position, wordRegex: RegExp) {
+	const lineText = document.getText({
+		start: { line: position.line, character: 0 },
+		end: { line: position.line + 1, character: 0 }
+	});
+
+	let start = position.character;
+	let end = position.character;
+
+	while (start > 0 && wordRegex.test(lineText[start - 1])) {
+		wordRegex.lastIndex = 0;
+		start--;
+	}
+
+	while (end < lineText.length && wordRegex.test(lineText[end])) {
+		wordRegex.lastIndex = 0;
+		end++;
+	}
+
+	if (start === end) { return undefined; }
+
+	return { start: { line: position.line, character: start }, end: { line: position.line, character: end } };
+}

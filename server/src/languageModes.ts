@@ -59,8 +59,10 @@ export interface NiriProperty {
  * KDL Syntax Patterns
  */
 
+/* Commented out to allow bare keywords similar to KDL v1.0 spec 
 // Forbidden bare keywords (must have # prefix)
-const FORBIDDEN_KEYWORDS = /\b(?<!#)(true|false|null|nan|(?:-)inf)\b/g;
+// const FORBIDDEN_KEYWORDS = /\b(?<!#)(true|false|null|nan|(?:-)inf)\b/g;
+*/
 
 /**
  * Niri Configuration Completions
@@ -508,7 +510,7 @@ export function getKDLMode(): LanguageMode {
 					continue;
 				}
 
-
+				/** Commented out to allow bare keywords similar to KDL v1.0 spec
 				// Check for forbidden bare keywords
 				// But allow them after '=' (as property values like allow-inhibiting=false)
 				const beforeEquals = line.split('=')[0];
@@ -516,7 +518,6 @@ export function getKDLMode(): LanguageMode {
 				FORBIDDEN_KEYWORDS.lastIndex = 0;
 				let match: RegExpExecArray | null;
 
-				/** Commented out to allow bare keywords similar to KDL v1.0 spec
 				// Only check for forbidden keywords in the part before '='
 				while ((match = FORBIDDEN_KEYWORDS.exec(beforeEquals))) {
 					diagnostics.push({
@@ -530,17 +531,6 @@ export function getKDLMode(): LanguageMode {
 					});
 				}
 				*/
-				while ((match = FORBIDDEN_KEYWORDS.exec(beforeEquals))) {
-					diagnostics.push({
-						severity: DiagnosticSeverity.Hint, // or DiagnosticSeverity.Warning
-						range: {
-							start: { line: i, character: match.index },
-							end: { line: i, character: match.index + match[0].length }
-						},
-						message: `Bare keyword '${match[0]}' is allowed, but using '#${match[0]}' may improve clarity.`,
-						source: 'kdl'
-					});
-				}
 
 				// Check for unclosed strings (simple check)
 				const quoteCount = (line.match(/(?<!\\)"/g) || []).length;

@@ -69,45 +69,45 @@
 					"description": "Traces the communication between VS Code and the language server"
 				},
 				"kdl.enable": {
-                    "scope": "resource",
-                    "type": "boolean",
-                    "default": true,
-                    "description": "Enable/disable the KDL language server"
-                },
-                "kdl.command": {
-                    "scope": "resource",
-                    "type": "string",
-                    "description": "LSP server command (defaults to bundled server)"
-                },
-                "kdl.argv": {
-                    "scope": "resource",
-                    "type": "array",
-                    "default": [],
-                    "items": {
-                        "type": "string"
-                    },
-                    "description": "LSP server arguments"
-                },
-                "kdl.loglevel": {
-                    "scope": "resource",
-                    "description": "Log level for the KDL LSP server",
-                    "type": "string",
-                    "default": "info",
-                    "enum": [
-                        "off",
-                        "error",
-                        "warn",
-                        "info",
-                        "debug"
-                    ],
-                    "enumDescriptions": [
-                        "No server tracing",
-                        "Errors only",
-                        "Warnings and errors",
-                        "Information, warnings, and errors",
-                        "Full debug output"
-                    ]
-                }
+					"scope": "resource",
+					"type": "boolean",
+					"default": true,
+					"description": "Enable/disable the KDL language server"
+				},
+				"kdl.command": {
+					"scope": "resource",
+					"type": "string",
+					"description": "LSP server command (defaults to bundled server)"
+				},
+				"kdl.argv": {
+					"scope": "resource",
+					"type": "array",
+					"default": [],
+					"items": {
+						"type": "string"
+					},
+					"description": "LSP server arguments"
+				},
+				"kdl.loglevel": {
+					"scope": "resource",
+					"description": "Log level for the KDL LSP server",
+					"type": "string",
+					"default": "info",
+					"enum": [
+						"off",
+						"error",
+						"warn",
+						"info",
+						"debug"
+					],
+					"enumDescriptions": [
+						"No server tracing",
+						"Errors only",
+						"Warnings and errors",
+						"Information, warnings, and errors",
+						"Full debug output"
+					]
+				}
 			}
 		}
 	},
