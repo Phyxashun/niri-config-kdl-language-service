@@ -6,6 +6,8 @@ import {
 	DiagnosticSeverity,
 	Position,
 	Range,
+	Hover,
+	MarkupKind
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 
@@ -25,6 +27,7 @@ export interface LanguageMode {
 	getId(): string;
 	doValidation?: (document: TextDocument) => Diagnostic[];
 	doComplete?: (document: TextDocument, position: Position) => CompletionList;
+	doHover?: (document: TextDocument, position: Position) => Hover | undefined;
 	onDocumentRemoved(document: TextDocument): void;
 	dispose(): void;
 }
@@ -514,18 +517,18 @@ export function getKDLMode(): LanguageMode {
 				let match: RegExpExecArray | null;
 
 				/** Commented out to allow bare keywords similar to KDL v1.0 spec
-								// Only check for forbidden keywords in the part before '='
-								while ((match = FORBIDDEN_KEYWORDS.exec(beforeEquals))) {
-									diagnostics.push({
-										severity: DiagnosticSeverity.Error,
-										range: {
-											start: { line: i, character: match.index },
-											end: { line: i, character: match.index + match[0].length }
-										},
-										message: `Bare keyword '${match[0]}' is not allowed. Use '#${match[0]}' instead.`,
-										source: 'kdl'
-									});
-								}
+				// Only check for forbidden keywords in the part before '='
+				while ((match = FORBIDDEN_KEYWORDS.exec(beforeEquals))) {
+					diagnostics.push({
+						severity: DiagnosticSeverity.Error,
+						range: {
+							start: { line: i, character: match.index },
+							end: { line: i, character: match.index + match[0].length }
+						},
+						message: `Bare keyword '${match[0]}' is not allowed. Use '#${match[0]}' instead.`,
+						source: 'kdl'
+					});
+				}
 				*/
 				while ((match = FORBIDDEN_KEYWORDS.exec(beforeEquals))) {
 					diagnostics.push({
@@ -714,18 +717,18 @@ export function getKDLMode(): LanguageMode {
 				// Always add basic value options
 				completions.push(
 					{ label: 'true', kind: CompletionItemKind.Value, detail: 'Boolean true' },
-					
+
 					{ label: 'false', kind: CompletionItemKind.Value, detail: 'Boolean false' },
-					
+
 					{ label: 'null', kind: CompletionItemKind.Value, detail: 'Null value' },
 					{ label: '#null', kind: CompletionItemKind.Value, detail: 'Tagged null' },
-					
+
 					{ label: 'nan', kind: CompletionItemKind.Value, detail: 'Not-a-Number' },
 					{ label: '#nan', kind: CompletionItemKind.Value, detail: 'Tagged NaN' },
-					
+
 					{ label: 'inf', kind: CompletionItemKind.Value, detail: 'Infinity' },
 					{ label: '-inf', kind: CompletionItemKind.Value, detail: 'Negative Infinity' },
-					
+
 					{ label: '#inf', kind: CompletionItemKind.Value, detail: 'Tagged Infinity' },
 					{ label: '#-inf', kind: CompletionItemKind.Value, detail: 'Tagged Negative Infinity' }
 				);
@@ -820,6 +823,60 @@ export function getKDLMode(): LanguageMode {
 			}
 
 			return CompletionList.create(completions, false);
+		},
+
+		doHover(document: TextDocument, position: Position): Hover | undefined {
+			const text = document.getText();
+			const offset = document.offsetAt(position);
+			const context = text.substring(Math.max(0, offset - 20), offset + 20);
+			const wordMatch = /\b[#]?[A-Za-z0-9\-_]+\b/.exec(context);
+			if (!wordMatch) { return undefined; }
+
+			const token = wordMatch[0];
+
+			// Check property names
+			const prop = NIRI_PROPERTIES.find(p => p.name === token);
+			if (prop) {
+				return {
+					contents: {
+						kind: MarkupKind.Markdown,
+						value: `**Property** \`${prop.name}\`  \nType: \`${prop.valueType}\`  \n${prop.description}`
+					}
+				};
+			}
+
+			// Check node names
+			if (NIRI_NODES.includes(token)) {
+				return {
+					contents: {
+						kind: MarkupKind.Markdown,
+						value: `**Section** \`${token}\` configuration block — see Niri wiki for more details.`
+					}
+				};
+			}
+
+			// Check flags
+			if (NIRI_FLAGS.includes(token)) {
+				return {
+					contents: {
+						kind: MarkupKind.Markdown,
+						value: `**Flag** \`${token}\` — toggle this option on when present.`
+					}
+				};
+			}
+
+			// Literals
+			if (/^#?(true|false|null|nan|inf|-inf)$/.test(token)) {
+				return {
+					contents: {
+						kind: MarkupKind.Markdown,
+						value: `**Literal** \`${token}\` — boolean/null/float literal accepted in config.`
+					}
+				};
+			}
+
+			// Fallback
+			return undefined;
 		},
 
 		onDocumentRemoved(_document: TextDocument) {
