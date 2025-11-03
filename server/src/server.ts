@@ -33,11 +33,12 @@ const documents = new TextDocuments<TextDocument>(TextDocument);
 // Language modes manager
 let languageModes: LanguageModes;
 
+// Capabilities flags
 let hasConfigurationCapability = false;
 let hasWorkspaceFolderCapability = false;
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 let hasDiagnosticRelatedInformationCapability = false;
 
+// Initialize the server
 connection.onInitialize((params: InitializeParams) => {
 	const capabilities = params.capabilities;
 
@@ -96,6 +97,7 @@ connection.onInitialize((params: InitializeParams) => {
 	return result;
 });
 
+// After the server has been initialized, register for configuration changes.
 connection.onInitialized(() => {
 	if (hasConfigurationCapability) {
 		// Register for all configuration changes.
@@ -106,8 +108,12 @@ connection.onInitialized(() => {
 			connection.console.log('Workspace folder change event received.');
 		});
 	}
+    if (hasDiagnosticRelatedInformationCapability) {
+        connection.console.log('Client supports diagnostic related information.');
+    }
 });
 
+// Hover Provider
 connection.onHover((params: HoverParams): Hover | null => {
 	const { textDocument, position } = params;
 	const document = documents.get(textDocument.uri);
@@ -125,7 +131,7 @@ connection.onHover((params: HoverParams): Hover | null => {
 
 	// Build the markdown content
 	let markdown = `**${key}**\n\n`;
-	if (entry.emoji) { markdown += `${entry.emoji} `; }
+	if (entry.icon) { markdown += `${entry.icon} `; }
 	markdown += `${entry.description}\n\n`;
 
 	if (entry.example) {
@@ -141,27 +147,29 @@ connection.onHover((params: HoverParams): Hover | null => {
 	};
 });
 
+/**
+ * Configuration Management
+ */
 
-
-// ============================================================================
-// Configuration Management
-// ============================================================================
-
+// Define the settings interface
 interface KDLSettings {
 	maxNumberOfProblems: number;
 	validate: boolean;
 }
 
+// Default settings
 const defaultSettings: KDLSettings = {
 	maxNumberOfProblems: 100,
 	validate: true
 };
 
+// The global settings, used when the `workspace/configuration` request is not supported by the client.
 let globalSettings: KDLSettings = defaultSettings;
 
 // Cache the settings of all open documents
 const documentSettings = new Map<string, Thenable<KDLSettings>>();
 
+// Only keep settings for open documents
 connection.onDidChangeConfiguration(change => {
 	if (hasConfigurationCapability) {
 		// Reset all cached document settings
@@ -173,6 +181,7 @@ connection.onDidChangeConfiguration(change => {
 	documents.all().forEach(validateTextDocument);
 });
 
+// Get the settings for a given document
 function getDocumentSettings(resource: string): Thenable<KDLSettings> {
 	if (!hasConfigurationCapability) {
 		return Promise.resolve(globalSettings);
@@ -188,14 +197,16 @@ function getDocumentSettings(resource: string): Thenable<KDLSettings> {
 	return result;
 }
 
-// ============================================================================
-// Document Validation
-// ============================================================================
+/**
+ * Document Validation
+ */
 
+// The content of a text document has changed. Validate the document.
 documents.onDidChangeContent(change => {
 	validateTextDocument(change.document);
 });
 
+// Validate a text document
 async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 	try {
 		const settings = await getDocumentSettings(textDocument.uri);
@@ -231,10 +242,11 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 	}
 }
 
-// ============================================================================
-// Pull Diagnostics (LSP 3.17)
-// ============================================================================
+/**
+ * Pull Diagnostics (LSP 3.17)
+ */
 
+// Handle document diagnostic requests
 connection.languages.diagnostics.on(async (params) => {
 	const document = documents.get(params.textDocument.uri);
 	if (document !== undefined) {
@@ -250,6 +262,7 @@ connection.languages.diagnostics.on(async (params) => {
 	}
 });
 
+// Validate the document and return diagnostics
 async function validateTextDocumentDiagnostics(textDocument: TextDocument): Promise<Diagnostic[]> {
 	const settings = await getDocumentSettings(textDocument.uri);
 
@@ -266,31 +279,29 @@ async function validateTextDocumentDiagnostics(textDocument: TextDocument): Prom
 	return diagnostics.slice(0, settings.maxNumberOfProblems);
 }
 
-// ============================================================================
-// Code Completion
-// ============================================================================
+/**
+ * Code Completion
+ */
 
+// This handler provides the initial list of the completion items.
 connection.onCompletion(
 	async (textDocumentPosition: TextDocumentPositionParams): Promise<CompletionItem[]> => {
 		const document = documents.get(textDocumentPosition.textDocument.uri);
-		if (!document) {
-			return [];
-		}
+		if (!document) { return []; }
 
 		const mode = languageModes.getMode('kdl');
-		if (!mode || !mode.doComplete) {
-			return [];
-		}
+		if (!mode || !mode.doComplete) { return []; }
 
 		const completionList = mode.doComplete(document, textDocumentPosition.position);
+		console.log('COMPLETION LIST ITEMS:', completionList.items);
 		return completionList.items;
 	}
 );
 
-// This handler resolves additional information for the item selected in
-// the completion list.
+// This handler resolves additional information for the item selected in the completion list.
 connection.onCompletionResolve(
 	(item: CompletionItem): CompletionItem => {
+		console.log('COMPLETION ITEM:', item);
 		// Add detailed documentation based on the item data
 		if (item.data?.toString().startsWith('node_')) {
 			item.documentation = `KDL configuration node. Use with child blocks: ${item.label} { }`;
@@ -306,16 +317,9 @@ connection.onCompletionResolve(
 	}
 );
 
-// ============================================================================
-// Document Lifecycle
-// ============================================================================
-
-// Make the text document manager listen on the connection
-// for open, change and close text document events
-documents.listen(connection);
-
-// Listen on the connection
-connection.listen();
+/**
+ * Utility Functions
+ */
 
 /**
  * Get the word range at a given position in the document based on the provided regex.
@@ -348,3 +352,18 @@ function getWordRangeAtPosition(document: TextDocument, position: Position, word
 
 	return { start: { line: position.line, character: start }, end: { line: position.line, character: end } };
 }
+
+/**
+ * Document Lifecycle
+ */
+
+/*
+	Make the text document manager listen on the connection
+	for open, change and close text document events
+*/
+documents.listen(connection);
+
+/*
+    Listen on the connection
+*/
+connection.listen();

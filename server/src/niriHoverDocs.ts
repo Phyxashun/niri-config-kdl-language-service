@@ -1,148 +1,136 @@
-export interface HoverDocEntry {
-	description: string;
-	example?: string;        // KDL snippet
-	color?: string;          // optional color hint (emoji only)
-	emoji?: string;          // optional icon
+export interface Documentation {
+	description: string;	 // brief description of the entry
+	icon?: string;          // optional icon
+	example?: string;        // optional KDL snippet
 }
 
-export const NIRI_HOVER_DOCS: Record<string, HoverDocEntry> = {
-	// =====================
-	// Window/Layout
-	// =====================
+export const NIRI_HOVER_DOCS: Record<string, Documentation> = {
+
 	"window": {
 		description: "Defines a display window or view",
-		example: `window {
-  title = "My Window"
-  floating = true
+		icon: "🖼️",
+		example: `
+window {
+	title = "My Window"
+	floating = true
 }`,
-		color: "cyan",
-		emoji: "🖼️"
 	},
 
 	"monitor": {
 		description: "Selects a specific output device",
-		example: `monitor id=0`,
-		color: "cyan",
-		emoji: "🖥️"
+		icon: "🖥️",
+		example: `
+monitor id=0`,
 	},
 
 	"workspace": {
 		description: "Groups windows logically",
-		example: `workspace name="MainWorkspace"`,
-		color: "cyan",
-		emoji: "🗂️"
+		icon: "🗂️",
+		example: `
+workspace name="MainWorkspace"`,
 	},
 
-	// =====================
-	// Matching
-	// =====================
+
 	"match": {
-		description: "Specifies matching rules for window conditions.\nCommon fields include `app-id` and `title`",
-		example: `match {
-  app-id = "org.wezfurlong.wezterm"
-  title = "My Window"
+		description: "Specifies matching rules for window conditions. Common fields include `app-id` and `title`",
+		icon: "🔍",
+		example: `
+match {
+	app-id = "org.wezfurlong.wezterm"
+	title = "My Window"
 }`,
-		color: "yellow",
-		emoji: "🔍"
 	},
 
 	"app-id": {
 		description: "Matches the window's application ID",
-		example: `match app-id = "org.wezfurlong.wezterm"`,
-		color: "yellow",
-		emoji: "📦"
+		icon: "📦",
+		example: `
+match app-id = "org.wezfurlong.wezterm"`,
 	},
 
 	"title": {
 		description: "Matches the window's title",
-		example: `match title = "My Window"`,
-		color: "yellow",
-		emoji: "🏷️"
+		icon: "🏷️",
+		example: `
+match title = "My Window"`,
 	},
 
 	"window-rule": {
 		description: "Defines how windows matching a given pattern should behave. You can nest `match` and configuration options inside.",
-		example: `window-rule {
-  match title = "My Window"
-  floating = true
+		icon: "⚙️",
+		example: `
+window-rule {
+	match title = "My Window"
+	floating = true
 }`,
-		color: "magenta",
-		emoji: "⚙️"
 	},
 
-	// =====================
-	// Boolean literals
-	// =====================
+
 	"true": {
 		description: 'Boolean literal representing "enabled" or "on"',
-		example: `window-rule = true`,
-		color: "green",
-		emoji: "✅"
+		icon: "✅",
+		example: `
+window-rule = true`,
 	},
 
 	"#true": {
 		description: 'Boolean literal representing "enabled" or "on"',
-		example: `window-rule = #true`,
-		color: "green",
-		emoji: "✅"
+		icon: "✅",
+		example: `
+window-rule = #true`,
 	},
 
 	"false": {
 		description: 'Boolean literal representing "disabled" or "off"',
-		example: `window-rule = false`,
-		color: "red",
-		emoji: "❌"
+		icon: "❌",
+		example: `
+window-rule = false`,
 	},
 
 	"#false": {
 		description: 'Boolean literal representing "disabled" or "off"',
-		example: `window-rule = #false`,
-		color: "red",
-		emoji: "❌"
+		icon: "❌",
+		example: `
+window-rule = #false`,
 	},
 
-	// =====================
-	// Special literals
-	// =====================
 	"null": {
 		description: 'Represents a null value',
-		example: `property = null`,
-		color: "gray",
-		emoji: "⚪"
+		icon: "⚪",
+		example: `
+property = null`,
 	},
 
 	"nan": {
 		description: 'Represents "not a number"',
-		example: `property = nan`,
-		color: "orange",
-		emoji: "⚠️"
+		icon: "⚠️",
+		example: `
+property = nan`,
 	},
 
 	"#nan": {
 		description: 'Represents "not a number"',
-		example: `property = #nan`,
-		color: "orange",
-		emoji: "⚠️"
+		icon: "⚠️",
+		example: `
+property = #nan`,
 	},
 
 	"inf": {
 		description: 'Represents positive infinity',
-		example: `property = inf`,
-		color: "blue",
-		emoji: "♾️"
+		icon: "♾️",
+		example: `
+property = inf`,
 	},
 
 	"-inf": {
 		description: 'Represents negative infinity',
-		example: `property = -inf`,
-		color: "blue",
-		emoji: "♾️"
+		icon: "♾️",
+		example: `
+property = -inf`,
 	},
-
-	// Add more Niri configuration nodes here following the same pattern
 };
 
-
+/*
 export const OLD_NIRI_HOVER_DOCS: Record<string, string> = {
 	// Top‑level sections
 	"input": `**input**  
@@ -349,3 +337,4 @@ some‑property = -inf
 
 <span style="color:blue;">♾️ ‑Infinity</span>`,
 };
+*/

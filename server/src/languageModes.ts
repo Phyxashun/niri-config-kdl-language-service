@@ -51,7 +51,7 @@ export interface LanguageModes {
  */
 export interface NiriProperty {
 	name: string;
-	valueType: string;
+	valueType: string; // object | string | string[] | number | number[] | boolean;
 	description: string;
 }
 
@@ -75,13 +75,44 @@ export interface NiriProperty {
  * 
  * Used for node name completions
  */
-const NIRI_NODES = [
-	'input', 'output', 'binds', 'layout', 'animations',
-	'window-rule', 'layer-rule', 'switch-events',
-	'keyboard', 'touchpad', 'mouse', 'trackpoint', 'xkb',
-	'focus-ring', 'border', 'shadow', 'struts', 'hotkey-overlay',
-	'preset-column-widths', 'preset-window-heights', 'debug'
+
+const NIRI_TOP_NODES = [
+	'input',
+	'output', 
+	'binds', 
+	'switch-events',
+	'layout', 	
+	'window-rule', 
+	'layer-rule', 
+	'animations',
+	'gestures',
+	'debug',
+	'include'
 ];
+
+const NIRI_CHILD_NODES = [
+	'keyboard',
+	'xkb',
+	'touchpad', 
+	'mouse', 
+	'trackpoint',
+	'trackball',
+	'tablet',
+	'touch',
+	
+	'focus-ring', 
+	'border', 
+	'shadow', 
+	'struts', 
+	'hotkey-overlay',
+	'preset-column-widths', 
+	'preset-window-heights', 
+	
+];
+
+const NIRI_NODES = [ 
+	...NIRI_TOP_NODES, 
+	...NIRI_CHILD_NODES ];
 
 /**
  * Common Niri flag nodes (toggle options)
@@ -90,9 +121,15 @@ const NIRI_NODES = [
  */
 const NIRI_FLAGS = [
 	// Input flags
-	'tap', 'dwt', 'dwtp', 'drag', 'drag-lock', 'natural-scroll',
+	'tap', 'dwt', 'dwtp', 'drag-lock', 'natural-scroll',
 	'numlock', 'off', 'warp-mouse-to-focus', 'disabled-on-external-mouse',
-	'scroll-button-lock', 'middle-emulation',
+	'scroll-button-lock', 'middle-emulation', 'left-handed',
+	'disable-power-key-handling', 'focus-follows-mouse',
+	'workspace-auto-back-and-forth',
+	// Output flags
+	'variable-refresh-rate', 'focus-at-startup',
+	// Hot-corner flags
+	'top-left', 'top-right', 'bottom-left', 'bottom-right',
 	// General flags
 	'prefer-no-csd', 'skip-at-startup', 'on',
 	// Border/shadow flags
@@ -108,14 +145,62 @@ const NIRI_FLAGS = [
  * 
  * Used for property name completions and value type hints
  */
-const NIRI_PROPERTIES: NiriProperty[] = [
+const NIRI_INPUT_PROPERTIES = [
+	// Input properties
+	{ name: 'mod-key', valueType: 'string', description: 'Modifier key for niri (Mod, Ctrl, Alt, etc.)' },
+	{ name: 'mod-key-nested', valueType: 'string', description: 'Modifier key for nested niri instances' },
+	{ name: 'repeat-delay', valueType: 'number', description: 'Key repeat delay in milliseconds' },
+	{ name: 'repeat-rate', valueType: 'number', description: 'Key repeat rate in characters per second' },
+
+		// XKB properties
+	{ name: 'layout', valueType: 'string', description: 'Keyboard layout (e.g., "us,ru")' },
+	{ name: 'variant', valueType: 'string', description: 'Keyboard layout variant' },
+	{ name: 'options', valueType: 'string', description: 'XKB options (e.g., "grp:win_space_toggle")' },
+	{ name: 'model', valueType: 'string', description: 'Keyboard model' },
+	{ name: 'rules', valueType: 'string', description: 'XKB rules' },
+	{ name: 'file', valueType: 'string', description: 'Path to custom XKB file' },
+
+	// Touchpad/Mouse/Trackpoint/Trackball properties
+	{ name: 'track-layout', valueType: 'string', description: 'Track layout changes (global, window)' },
+	{ name: 'drag', valueType: 'boolean', description: 'Enable tap-and-drag functionality' },
+	{ name: 'accel-speed', valueType: 'number', description: 'Pointer acceleration speed (-1.0 to 1.0)' },
+	{ name: 'accel-profile', valueType: 'string', description: 'Acceleration profile ("flat" or "adaptive")' },
+	{ name: 'scroll-factor', valueType: 'number', description: 'Scroll speed multiplier' },
+	{ name: 'vertical', valueType: 'number', description: 'Vertical scroll speed multiplier' },
+	{ name: 'horizontal', valueType: 'number', description: 'Horizontal scroll speed multiplier' },
+	{ name: 'scroll-method', valueType: 'string', description: 'Scroll method (two-finger, edge, on-button-down, no-scroll)' },
+	{ name: 'scroll-button', valueType: 'number', description: 'Button number for scroll-method on-button-down' },
+	{ name: 'tap-button-map', valueType: 'string', description: 'Tap button mapping (lrm, lmr, rlm)' },
+	{ name: 'click-method', valueType: 'string', description: 'Click method (button-areas, clickfinger)' },
+	{ name: 'max-scroll-amount', valueType: 'string', description: 'Maximum scroll for focus-follows-mouse (e.g., "0%")' },
+
+	// Tablet/Touch properties
+	{ name: 'map-to-output', valueType: 'string', description: 'Output to map tablet/touch input to' },
+	{ name: 'calibration-matrix', valueType: 'number[]', description: 'Calibration matrix values' },
+];
+
+const NIRI_OUTPUT_PROPERTIES = [
 	// Output properties
 	{ name: 'mode', valueType: 'string', description: 'Display mode (e.g., "1920x1080@60")' },
+	{ name: 'custom', valueType: 'boolean', description: 'Use a custom mode not listed in EDID' },
+	// { name: 'modeline', valueType: 'number[]', description: 'Directly configures the monitor\'s mode via a modeline, overriding any configured mode' }, // Next version of Niri
 	{ name: 'scale', valueType: 'number', description: 'Display scale factor (e.g., 1.5 for 150%)' },
 	{ name: 'transform', valueType: 'string', description: 'Display rotation (normal, 90, 180, 270, flipped-*)' },
-	{ name: 'position', valueType: 'position', description: 'Display position (x=N y=N)' },
+	{ name: 'position', valueType: 'position', description: 'Display position (x=# y=#)' },
 	{ name: 'x', valueType: 'number', description: 'X coordinate' },
 	{ name: 'y', valueType: 'number', description: 'Y coordinate' },
+	{ name: 'backdrop-color', valueType: 'string', description: 'Set the backdrop color that niri draws for this output' },
+	// { name: 'hot-corners', valueType: 'object', description: 'Configure hot-corners for this output' }, // Next version of Niri
+	// { name: 'layout', valueType: 'string', description: 'Layout configuration overrides for the current output' }, // Next version of Niri
+];
+
+const NIRI_BINDS_PROPERTIES = [
+	// Binds properties
+	{ name: 'allow-inhibiting', valueType: 'boolean', description: 'Allow apps to inhibit this shortcut' },
+	{ name: 'allow-when-locked', valueType: 'boolean', description: 'Allow binding when screen is locked' },
+	{ name: 'repeat', valueType: 'boolean', description: 'Allow key repeat for this binding' },
+	{ name: 'cooldown-ms', valueType: 'number', description: 'Rate limit binding to N milliseconds' },
+	{ name: 'hotkey-overlay-title', valueType: 'string', description: 'Title shown in hotkey overlay (or null)' },
 
 	// Layout properties
 	{ name: 'gaps', valueType: 'number', description: 'Gap size around windows in logical pixels' },
@@ -141,27 +226,6 @@ const NIRI_PROPERTIES: NiriProperty[] = [
 	{ name: 'spread', valueType: 'number', description: 'Shadow spread/expansion' },
 	{ name: 'color', valueType: 'color', description: 'Shadow color with opacity' },
 
-	// Input properties
-	{ name: 'accel-speed', valueType: 'number', description: 'Pointer acceleration speed (-1.0 to 1.0)' },
-	{ name: 'accel-profile', valueType: 'string', description: 'Acceleration profile ("flat" or "adaptive")' },
-	{ name: 'scroll-method', valueType: 'string', description: 'Scroll method (two-finger, edge, on-button-down, no-scroll)' },
-	{ name: 'scroll-button', valueType: 'number', description: 'Button number for scroll-method on-button-down' },
-	{ name: 'max-scroll-amount', valueType: 'string', description: 'Maximum scroll for focus-follows-mouse (e.g., "0%")' },
-
-	// XKB properties
-	{ name: 'layout', valueType: 'string', description: 'Keyboard layout (e.g., "us,ru")' },
-	{ name: 'variant', valueType: 'string', description: 'Keyboard layout variant' },
-	{ name: 'options', valueType: 'string', description: 'XKB options (e.g., "grp:win_space_toggle")' },
-	{ name: 'model', valueType: 'string', description: 'Keyboard model' },
-	{ name: 'rules', valueType: 'string', description: 'XKB rules' },
-
-	// Keybinding properties
-	{ name: 'allow-inhibiting', valueType: 'boolean', description: 'Allow apps to inhibit this shortcut' },
-	{ name: 'allow-when-locked', valueType: 'boolean', description: 'Allow binding when screen is locked' },
-	{ name: 'repeat', valueType: 'boolean', description: 'Allow key repeat for this binding' },
-	{ name: 'cooldown-ms', valueType: 'number', description: 'Rate limit binding to N milliseconds' },
-	{ name: 'hotkey-overlay-title', valueType: 'string', description: 'Title shown in hotkey overlay (or null)' },
-
 	// Window rule properties
 	{ name: 'match', valueType: 'match', description: 'Window matching criteria (app-id, title)' },
 	{ name: 'app-id', valueType: 'string', description: 'Match by application ID' },
@@ -185,13 +249,40 @@ const NIRI_PROPERTIES: NiriProperty[] = [
 	{ name: 'screenshot-path', valueType: 'string', description: 'Path for saving screenshots (or null)' }
 ];
 
+const NIRI_PROPERTIES: NiriProperty[] = [
+	...NIRI_INPUT_PROPERTIES,
+	...NIRI_OUTPUT_PROPERTIES,
+	...NIRI_BINDS_PROPERTIES
+];
+
 /**
  * Common Niri key modifiers
  * 
  * Used for keybinding key completions
  */
 const NIRI_KEY_MODIFIERS = [
-	'Mod', 'Super', 'Alt', 'Ctrl', 'Shift'
+	/**
+	 * Default/Special Modifier - 'Mod'
+	 *  
+	 * Mod is a special modifier that is equal to 'Super' when running 
+	 * niri on a TTY, and to 'Alt' when running niri as a nested winit 
+	 * window. This way, you can test niri in a window without 
+	 * causing too many conflicts with the host compositor's key 
+	 * bindings. For this reason, most of the default keys use the 
+	 * 'Mod' modifier.
+	 * 
+	 * NOTE: There are a lot of default bindings with 'Mod', none of 
+	 * them "make it through" to the underlying window. You probably
+	 * don't want to set mod-key to 'Ctrl' or 'Shift', since 'Ctrl' is 
+	 * commonly used for app hotkeys, and 'Shift' is used for, well, 
+	 * regular typing.
+	 */
+	'Mod',
+	// Standard modifiers
+	'Ctrl', 'Control', 'Shift', 'Alt', 'Super', 'Win', 
+	// Additional modifiers
+	'ISO_Level3_Shift', 'Mod5', // this is the AltGr key on certain layouts
+	'ISO_Level5_Shift' // can be used with an xkb lv5 option like lv5:caps_switch
 ];
 
 /** 
@@ -535,12 +626,12 @@ export function getKDLMode(): LanguageMode {
 				// Check for unclosed strings (simple check)
 				const quoteCount = (line.match(/(?<!\\)"/g) || []).length;
 				if (quoteCount % 2 !== 0 && !line.includes('"""')) {
+					const startPos = { line: i, character: 0 };
+					const endPos = { line: i, character: line.length };
+
 					diagnostics.push({
 						severity: DiagnosticSeverity.Error,
-						range: {
-							start: { line: i, character: 0 },
-							end: { line: i, character: line.length }
-						},
+						range: { start: startPos, end: endPos},
 						message: 'Unclosed string literal',
 						source: 'kdl'
 					});
